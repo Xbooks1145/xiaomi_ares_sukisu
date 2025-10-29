@@ -127,6 +127,7 @@ jobs:
       - name: Copy defconfig
         run: |
           if [ "${{ inputs.enable_feature_kpm }}" = "true" ]; then
+            echo "CONFIG_KALLSYMS_ALL=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig
             echo "CONFIG_KPM=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig
           fi
           cp $GITHUB_WORKSPACE/Patches/ares_user_defconfig $GITHUB_WORKSPACE/kernel/arch/arm64/configs
