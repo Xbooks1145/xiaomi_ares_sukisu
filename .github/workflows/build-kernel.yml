@@ -13,6 +13,10 @@ on:
         required: false
         default: true
         type: boolean
+      SUKISU_BRANCH:
+        description: 'SukiSU 分支名称'
+        required: true
+        default: 'susfs-main'
 
 jobs:
   build:
@@ -70,7 +74,7 @@ jobs:
         run: |
           echo DATE=$(date +%F) >> $GITHUB_ENV
           if [ "${{ inputs.enable_feature_susfs }}" = "true" ]; then
-            export BRANCH=susfs-main
+            export BRANCH=${{ inputs.SUKISU_BRANCH }}
           else
             export BRANCH=nongki
           fi
