@@ -112,7 +112,6 @@ jobs:
           patch -p1 -R < $GITHUB_WORKSPACE/Patches/original-ksu.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/ksu-syscall-hooks.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/temp-fix.patch
 
       - name: Apply KernelPatch for SUSFS
         if: ${{ inputs.enable_feature_susfs }}
