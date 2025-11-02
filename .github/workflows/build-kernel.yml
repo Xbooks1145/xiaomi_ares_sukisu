@@ -14,7 +14,7 @@ on:
         default: true
         type: boolean
       SUKISU_BRANCH:
-        description: 'SukiSU 分支名称'
+        description: 'SukiSU 分支名称或修订版（仅在启用susfs时使用）'
         required: true
         default: 'susfs-main'
 
