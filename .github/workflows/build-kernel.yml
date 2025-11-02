@@ -108,6 +108,7 @@ jobs:
           patch -p1 -R < $GITHUB_WORKSPACE/Patches/original-ksu.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/ksu-syscall-hooks.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/temp-fix.patch
 
       - name: Apply KernelPatch for SUSFS
         if: ${{ inputs.enable_feature_susfs }}
@@ -121,8 +122,7 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch
-
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch || true
 
       - name: Copy defconfig
         run: |
