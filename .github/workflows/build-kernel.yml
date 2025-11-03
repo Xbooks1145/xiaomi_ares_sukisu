@@ -13,6 +13,10 @@ on:
         required: false
         default: true
         type: boolean
+      SUKISU_BRANCH:
+        description: 'SukiSU 分支名称或修订版（仅在启用susfs时使用）'
+        required: true
+        default: 'susfs-main'
 
 jobs:
   build:
@@ -70,7 +74,7 @@ jobs:
         run: |
           echo DATE=$(date +%F) >> $GITHUB_ENV
           if [ "${{ inputs.enable_feature_susfs }}" = "true" ]; then
-            export BRANCH=susfs-main
+            export BRANCH=${{ inputs.SUKISU_BRANCH }}
           else
             export BRANCH=nongki
           fi
@@ -121,8 +125,7 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch
-
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch || true
 
       - name: Copy defconfig
         run: |

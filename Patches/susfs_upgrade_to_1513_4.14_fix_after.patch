@@ -1,14 +1,14 @@
-From fe1df5edd00384c9cc508082aab54c07d946468b Mon Sep 17 00:00:00 2001
+From 8f3484b4adf8bf6e9bec208586efb1a66000e2e4 Mon Sep 17 00:00:00 2001
 From: MerCuJerry <mercujerry@gmail.com>
-Date: Tue, 28 Oct 2025 23:43:18 +0800
+Date: Sun, 2 Nov 2025 14:26:26 +0800
 Subject: [PATCH] fix build error
 
 ---
- fs/namespace.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ fs/namespace.c | 1 +
+ 1 file changed, 1 insertion(+)
 
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 9586a5fcc..b1883dbc9 100644
+index 774419cb6..b61b2ee9d 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -380,6 +380,7 @@ static struct mount *alloc_vfsmnt(const char *name)
@@ -19,17 +19,6 @@ index 9586a5fcc..b1883dbc9 100644
  		if (err)
  			goto out_free_cache;
  
-@@ -1207,10 +1208,6 @@ vfs_kern_mount(struct file_system_type *type, int flags, const char *name, void
- {
- 	struct mount *mnt;
- 	struct dentry *root;
--#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
--	// Make sure mnt->mnt.susfs_mnt_id_backup is initialized every time.
--	mnt->mnt.susfs_mnt_id_backup = 0;
--#endif
- 	
- 	if (!type)
- 		return ERR_PTR(-ENODEV);
 -- 
 2.51.2
 
