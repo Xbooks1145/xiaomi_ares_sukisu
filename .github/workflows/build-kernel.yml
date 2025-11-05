@@ -113,7 +113,6 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/ksu-syscall-hooks.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/rekernel_extra.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/rekernel-4.14.patch
 
       - name: Apply KernelPatch for SUSFS
         if: ${{ inputs.enable_feature_susfs }}
