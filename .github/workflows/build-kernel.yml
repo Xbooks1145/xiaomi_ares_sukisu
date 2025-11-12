@@ -6,7 +6,7 @@ on:
       enable_feature_kpm:
         description: "是否启用kpm"
         required: false
-        default: false
+        default: true
         type: boolean
       enable_feature_susfs:
         description: "是否启用susfs"
@@ -113,6 +113,7 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/ksu-syscall-hooks.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/rekernel_extra.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/lz4-Update-to-version-1.9.4.patch
 
       - name: Apply KernelPatch for SUSFS
         if: ${{ inputs.enable_feature_susfs }}
