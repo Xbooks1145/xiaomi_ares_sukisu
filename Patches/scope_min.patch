@@ -1,18 +1,18 @@
-From fb257334d450c57107c3a0b214c122fe99e94f65 Mon Sep 17 00:00:00 2001
+From d44b05e1b49976447940073a89394435bc3ae9ac Mon Sep 17 00:00:00 2001
 From: MerCuJerry <mercujerry@gmail.com>
-Date: Wed, 19 Nov 2025 14:40:41 +0800
+Date: Wed, 19 Nov 2025 15:05:30 +0800
 Subject: [PATCH] ksu
 
 ---
  drivers/input/input.c |  9 +++++++++
- fs/devpts/inode.c     | 14 ++++++++++++++
- fs/exec.c             | 23 +++++++++++++++++++++++
- fs/open.c             | 15 +++++++++++++++
+ fs/devpts/inode.c     |  7 +++++++
+ fs/exec.c             | 14 ++++++++++++++
+ fs/open.c             |  7 +++++++
  fs/read_write.c       | 10 ++++++++++
- fs/stat.c             | 17 +++++++++++++++++
+ fs/stat.c             |  8 ++++++++
  kernel/reboot.c       | 11 +++++++++++
  kernel/sys.c          |  8 ++++++++
- 8 files changed, 107 insertions(+)
+ 8 files changed, 74 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index f9f3d6261..de628e110 100644
@@ -39,20 +39,10 @@ index f9f3d6261..de628e110 100644
  	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
  		add_input_randomness(type, code, value);
 diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
-index 32f6f1c68..4f52c85e8 100644
+index 32f6f1c68..344b69349 100644
 --- a/fs/devpts/inode.c
 +++ b/fs/devpts/inode.c
-@@ -27,6 +27,9 @@
- #include <linux/parser.h>
- #include <linux/fsnotify.h>
- #include <linux/seq_file.h>
-+#ifdef CONFIG_KSU_SUSFS
-+#include <linux/susfs_def.h>
-+#endif
- 
- #define DEVPTS_DEFAULT_MODE 0600
- /*
-@@ -602,6 +605,10 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+@@ -602,6 +602,10 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
  	return dentry;
  }
  
@@ -63,35 +53,21 @@ index 32f6f1c68..4f52c85e8 100644
  /**
   * devpts_get_priv -- get private data for a slave
   * @pts_inode: inode of the slave
-@@ -610,6 +617,13 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+@@ -610,6 +614,9 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
   */
  void *devpts_get_priv(struct dentry *dentry)
  {
 +#ifdef CONFIG_KSU_SUSFS
-+	if (likely(susfs_is_current_proc_umounted())) {
-+		goto orig_flow;
-+	}
 +	ksu_handle_devpts(dentry->d_inode);
-+orig_flow:
 +#endif
  	if (dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC)
  		return NULL;
  	return dentry->d_fsdata;
 diff --git a/fs/exec.c b/fs/exec.c
-index ae0a49517..b09d7ab9b 100644
+index ae0a49517..421a4b164 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -62,6 +62,9 @@
- #include <linux/oom.h>
- #include <linux/compat.h>
- #include <linux/vmalloc.h>
-+#ifdef CONFIG_KSU_SUSFS
-+#include <linux/susfs_def.h>
-+#endif
- 
- #include <linux/uaccess.h>
- #include <asm/mmu_context.h>
-@@ -1709,6 +1712,13 @@ static int exec_binprm(struct linux_binprm *bprm)
+@@ -1709,6 +1709,13 @@ static int exec_binprm(struct linux_binprm *bprm)
  /*
   * sys_execve() executes a new program.
   */
@@ -105,41 +81,25 @@ index ae0a49517..b09d7ab9b 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1723,6 +1733,19 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1723,6 +1730,13 @@ static int do_execveat_common(int fd, struct filename *filename,
  	if (IS_ERR(filename))
  		return PTR_ERR(filename);
  
 +#ifdef CONFIG_KSU_SUSFS
-+	if (likely(susfs_is_current_proc_umounted())) {
-+		goto orig_flow;
-+	}
-+
 +	if (unlikely(ksu_execveat_hook)) {
 +		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
 +	} else {
 +		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
 +	}
-+
-+orig_flow:
 +#endif
  	/*
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
 diff --git a/fs/open.c b/fs/open.c
-index 3b62683fe..ce0f8656d 100644
+index 3b62683fe..094be97f4 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -31,6 +31,9 @@
- #include <linux/ima.h>
- #include <linux/dnotify.h>
- #include <linux/compat.h>
-+#ifdef CONFIG_KSU_SUSFS
-+#include <linux/susfs_def.h>
-+#endif
- 
- #include "internal.h"
- 
-@@ -354,6 +357,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+@@ -354,6 +354,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
  	return error;
  }
  
@@ -150,17 +110,12 @@ index 3b62683fe..ce0f8656d 100644
  /*
   * access() needs to use the real uid/gid, not the effective uid/gid.
   * We do this by temporarily clearing all FS-related capabilities and
-@@ -368,6 +375,14 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+@@ -368,6 +372,9 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
  	struct vfsmount *mnt;
  	int res;
  	unsigned int lookup_flags = LOOKUP_FOLLOW;
 +#ifdef CONFIG_KSU
-+	if (likely(susfs_is_current_proc_umounted())) {
-+		goto orig_flow;
-+	}
-+
 +	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-+orig_flow:
 +#endif
  
  	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
@@ -192,21 +147,10 @@ index 0da6e4f19..25a850ba2 100644
  		loff_t pos = file_pos_read(f.file);
  		ret = vfs_read(f.file, buf, count, &pos);
 diff --git a/fs/stat.c b/fs/stat.c
-index 0fda4b6b8..f8fea07f7 100644
+index 0fda4b6b8..e9f8ec453 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -17,6 +17,10 @@
- #include <linux/syscalls.h>
- #include <linux/pagemap.h>
- #include <linux/compat.h>
-+#ifdef CONFIG_KSU_SUSFS
-+#include <linux/susfs_def.h>
-+#include <linux/version.h>
-+#endif
- 
- #include <linux/uaccess.h>
- #include <asm/unistd.h>
-@@ -148,6 +152,10 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
+@@ -148,6 +148,10 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
  }
  EXPORT_SYMBOL(vfs_statx_fd);
  
@@ -217,18 +161,13 @@ index 0fda4b6b8..f8fea07f7 100644
  /**
   * vfs_statx - Get basic and extra attributes by filename
   * @dfd: A file descriptor representing the base dir for a relative filename
-@@ -169,6 +177,15 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+@@ -169,6 +173,10 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
  	struct path path;
  	int error = -EINVAL;
  	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
 +	
 +#ifdef CONFIG_KSU
-+	if (likely(susfs_is_current_proc_umounted())) {
-+		goto orig_flow;
-+	}
-+
 +	ksu_handle_stat(&dfd, &filename, &flags);
-+orig_flow:
 +#endif
  
  	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
