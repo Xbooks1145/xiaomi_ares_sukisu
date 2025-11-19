@@ -112,7 +112,6 @@ jobs:
           patch -p1 -R < $GITHUB_WORKSPACE/Patches/original-ksu.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/backport-umount.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/backport-selinux-inode.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/backport-set-memory.patch
           patch -p1 < $GITHUB_WORKSPACE/Patches/scope_min.patch
 
