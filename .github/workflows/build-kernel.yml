@@ -130,7 +130,7 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2001_4.14.patch || true
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix.patch
-          # patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch || true
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch || true
           patch -p1 < $GITHUB_WORKSPACE/Patches/seccomp.patch
 
       - name: Copy defconfig
