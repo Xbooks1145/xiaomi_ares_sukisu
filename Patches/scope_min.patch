@@ -1,16 +1,16 @@
-From 1f16b71e0059cd66466b424f286671faf475856e Mon Sep 17 00:00:00 2001
+From f821f2a939c1c4b20aba472351a3dd8aa54db86b Mon Sep 17 00:00:00 2001
 From: MerCuJerry <mercujerry@gmail.com>
-Date: Wed, 19 Nov 2025 13:16:51 +0800
+Date: Wed, 19 Nov 2025 13:25:35 +0800
 Subject: [PATCH] ksu
 
 ---
  drivers/input/input.c | 10 ++++++++++
- fs/exec.c             | 20 ++++++++++++++++++++
+ fs/exec.c             | 23 +++++++++++++++++++++++
  fs/open.c             |  9 +++++++++
  fs/read_write.c       | 10 ++++++++++
  fs/stat.c             | 15 +++++++++++++++
  kernel/reboot.c       |  6 ++++++
- 6 files changed, 70 insertions(+)
+ 6 files changed, 73 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
 index f9f3d6261..185ceff16 100644
@@ -39,10 +39,20 @@ index f9f3d6261..185ceff16 100644
  
  		spin_lock_irqsave(&dev->event_lock, flags);
 diff --git a/fs/exec.c b/fs/exec.c
-index ae0a49517..60eceda20 100644
+index ae0a49517..b09d7ab9b 100644
 --- a/fs/exec.c
 +++ b/fs/exec.c
-@@ -1709,6 +1709,13 @@ static int exec_binprm(struct linux_binprm *bprm)
+@@ -62,6 +62,9 @@
+ #include <linux/oom.h>
+ #include <linux/compat.h>
+ #include <linux/vmalloc.h>
++#ifdef CONFIG_KSU_SUSFS
++#include <linux/susfs_def.h>
++#endif
+ 
+ #include <linux/uaccess.h>
+ #include <asm/mmu_context.h>
+@@ -1709,6 +1712,13 @@ static int exec_binprm(struct linux_binprm *bprm)
  /*
   * sys_execve() executes a new program.
   */
@@ -56,7 +66,7 @@ index ae0a49517..60eceda20 100644
  static int do_execveat_common(int fd, struct filename *filename,
  			      struct user_arg_ptr argv,
  			      struct user_arg_ptr envp,
-@@ -1723,6 +1730,19 @@ static int do_execveat_common(int fd, struct filename *filename,
+@@ -1723,6 +1733,19 @@ static int do_execveat_common(int fd, struct filename *filename,
  	if (IS_ERR(filename))
  		return PTR_ERR(filename);
  
@@ -67,7 +77,7 @@ index ae0a49517..60eceda20 100644
 +
 +	if (unlikely(ksu_execveat_hook)) {
 +		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
-+	} else if ((__ksu_is_allow_uid_for_current(current_uid().val))) {
++	} else {
 +		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
 +	}
 +
