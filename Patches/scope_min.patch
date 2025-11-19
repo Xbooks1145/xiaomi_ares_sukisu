@@ -1,43 +1,67 @@
-From f821f2a939c1c4b20aba472351a3dd8aa54db86b Mon Sep 17 00:00:00 2001
+From 1ce5cd9c616b85f4715aece9036bfbdbb50430aa Mon Sep 17 00:00:00 2001
 From: MerCuJerry <mercujerry@gmail.com>
-Date: Wed, 19 Nov 2025 13:25:35 +0800
+Date: Wed, 19 Nov 2025 13:39:37 +0800
 Subject: [PATCH] ksu
 
 ---
- drivers/input/input.c | 10 ++++++++++
+ drivers/input/input.c |  9 +++++++++
+ fs/devpts/inode.c     |  7 +++++++
  fs/exec.c             | 23 +++++++++++++++++++++++
- fs/open.c             |  9 +++++++++
- fs/read_write.c       | 10 ++++++++++
- fs/stat.c             | 15 +++++++++++++++
+ fs/open.c             |  7 +++++++
+ fs/read_write.c       | 14 ++++++++++++++
+ fs/stat.c             |  8 ++++++++
  kernel/reboot.c       |  6 ++++++
- 6 files changed, 73 insertions(+)
+ 7 files changed, 74 insertions(+)
 
 diff --git a/drivers/input/input.c b/drivers/input/input.c
-index f9f3d6261..185ceff16 100644
+index f9f3d6261..de628e110 100644
 --- a/drivers/input/input.c
 +++ b/drivers/input/input.c
-@@ -436,11 +436,21 @@ static void input_handle_event(struct input_dev *dev,
-  * to 'seed' initial state of a switch or initial position of absolute
-  * axis, etc.
-  */
+@@ -377,10 +377,19 @@ static int input_get_disposition(struct input_dev *dev,
+ 	return disposition;
+ }
+ 
 +#ifdef CONFIG_KSU
 +extern bool ksu_input_hook __read_mostly;
-+extern __attribute__((cold)) int ksu_handle_input_handle_event(
-+			unsigned int *type, unsigned int *code, int *value);
++extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code, int *value);
 +#endif
- void input_event(struct input_dev *dev,
- 		 unsigned int type, unsigned int code, int value)
++
+ static void input_handle_event(struct input_dev *dev,
+ 			       unsigned int type, unsigned int code, int value)
  {
- 	unsigned long flags;
- 
-+	
-+#ifdef CONFIG_KSU
+ 	int disposition = input_get_disposition(dev, type, code, &value);
++	#ifdef CONFIG_KSU
 +	if (unlikely(ksu_input_hook))
 +		ksu_handle_input_handle_event(&type, &code, &value);
-+#endif
- 	if (is_event_supported(type, dev->evbit, EV_MAX)) {
++	#endif
  
- 		spin_lock_irqsave(&dev->event_lock, flags);
+ 	if (disposition != INPUT_IGNORE_EVENT && type != EV_SYN)
+ 		add_input_randomness(type, code, value);
+diff --git a/fs/devpts/inode.c b/fs/devpts/inode.c
+index 32f6f1c68..56cb66fb9 100644
+--- a/fs/devpts/inode.c
++++ b/fs/devpts/inode.c
+@@ -602,6 +602,10 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+ 	return dentry;
+ }
+ 
++#ifdef CONFIG_KSU
++extern int ksu_handle_devpts(struct inode*);
++#endif
++
+ /**
+  * devpts_get_priv -- get private data for a slave
+  * @pts_inode: inode of the slave
+@@ -610,6 +614,9 @@ struct dentry *devpts_pty_new(struct pts_fs_info *fsi, int index, void *priv)
+  */
+ void *devpts_get_priv(struct dentry *dentry)
+ {
++	#ifdef CONFIG_KSU
++	ksu_handle_devpts(dentry->d_inode);
++	#endif
+ 	if (dentry->d_sb->s_magic != DEVPTS_SUPER_MAGIC)
+ 		return NULL;
+ 	return dentry->d_fsdata;
 diff --git a/fs/exec.c b/fs/exec.c
 index ae0a49517..b09d7ab9b 100644
 --- a/fs/exec.c
@@ -87,37 +111,46 @@ index ae0a49517..b09d7ab9b 100644
  	 * We move the actual failure in case of RLIMIT_NPROC excess from
  	 * set*uid() to execve() because too many poorly written programs
 diff --git a/fs/open.c b/fs/open.c
-index 3b62683fe..908ce836b 100644
+index 3b62683fe..a522c31d3 100644
 --- a/fs/open.c
 +++ b/fs/open.c
-@@ -359,6 +359,12 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
-  * We do this by temporarily clearing all FS-related capabilities and
-  * switching the fsuid/fsgid around to the real ones.
-  */
+@@ -354,6 +354,10 @@ SYSCALL_DEFINE4(fallocate, int, fd, int, mode, loff_t, offset, loff_t, len)
+ 	return error;
+ }
+ 
 +#ifdef CONFIG_KSU
-+__attribute__((hot))
-+extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user,
-+				int *mode, int *flags);
++extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
++			 int *flags);
 +#endif
-+
- SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
- {
- 	const struct cred *old_cred;
-@@ -369,6 +375,9 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+ /*
+  * access() needs to use the real uid/gid, not the effective uid/gid.
+  * We do this by temporarily clearing all FS-related capabilities and
+@@ -368,6 +372,9 @@ SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
+ 	struct vfsmount *mnt;
  	int res;
  	unsigned int lookup_flags = LOOKUP_FOLLOW;
- 
-+#ifdef CONFIG_KSU
++	#ifdef CONFIG_KSU
 +	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
-+#endif
++	#endif
+ 
  	if (mode & ~S_IRWXO)	/* where's F_OK, X_OK, W_OK, R_OK? */
  		return -EINVAL;
- 
 diff --git a/fs/read_write.c b/fs/read_write.c
-index 0da6e4f19..25a850ba2 100644
+index 0da6e4f19..004ffb2b8 100644
 --- a/fs/read_write.c
 +++ b/fs/read_write.c
-@@ -568,11 +568,21 @@ static inline void file_pos_write(struct file *file, loff_t pos)
+@@ -432,6 +432,10 @@ EXPORT_SYMBOL(kernel_read);
+ ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+ {
+ 	ssize_t ret;
++	#ifdef CONFIG_KSU 
++	if (unlikely(ksu_vfs_read_hook))
++		ksu_handle_vfs_read(&file, &buf, &count, &pos);
++	#endif
+ 
+ 	if (!(file->f_mode & FMODE_READ))
+ 		return -EBADF;
+@@ -568,11 +572,21 @@ static inline void file_pos_write(struct file *file, loff_t pos)
  		file->f_pos = pos;
  }
  
@@ -140,52 +173,31 @@ index 0da6e4f19..25a850ba2 100644
  		loff_t pos = file_pos_read(f.file);
  		ret = vfs_read(f.file, buf, count, &pos);
 diff --git a/fs/stat.c b/fs/stat.c
-index be21c5457..e522d164f 100644
+index be21c5457..29a8ca517 100644
 --- a/fs/stat.c
 +++ b/fs/stat.c
-@@ -371,6 +371,12 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
- 	return cp_new_stat(&stat, statbuf);
+@@ -166,6 +166,10 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
  }
+ EXPORT_SYMBOL(vfs_statx_fd);
  
 +#ifdef CONFIG_KSU
-+__attribute__((hot))
-+extern int ksu_handle_stat(int *dfd, const char __user **filename_user,
-+				int *flags);
++extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
 +#endif
 +
- #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
- SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
- 		struct stat __user *, statbuf, int, flag)
-@@ -378,6 +384,9 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
- 	struct kstat stat;
- 	int error;
- 
+ /**
+  * vfs_statx - Get basic and extra attributes by filename
+  * @dfd: A file descriptor representing the base dir for a relative filename
+@@ -187,6 +191,10 @@ int vfs_statx(int dfd, const char __user *filename, int flags,
+ 	struct path path;
+ 	int error = -EINVAL;
+ 	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
++	
 +#ifdef CONFIG_KSU
-+	ksu_handle_stat(&dfd, &filename, &flag);
++	ksu_handle_stat(&dfd, &filename, &flags);
 +#endif
- 	error = vfs_fstatat(dfd, filename, &stat, flag);
- 	if (error)
- 		return error;
-@@ -522,6 +531,9 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
- 	struct kstat stat;
- 	int error;
  
-+#ifdef CONFIG_KSU
-+	ksu_handle_stat(&dfd, &filename, &flag);
-+#endif
- 	error = vfs_fstatat(dfd, filename, &stat, flag);
- 	if (error)
- 		return error;
-@@ -662,6 +674,9 @@ COMPAT_SYSCALL_DEFINE4(newfstatat, unsigned int, dfd,
- 	struct kstat stat;
- 	int error;
- 
-+#ifdef CONFIG_KSU
-+	ksu_handle_stat(&dfd, &filename, &flag);
-+#endif
- 	error = vfs_fstatat(dfd, filename, &stat, flag);
- 	if (error)
- 		return error;
+ 	if ((flags & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+ 		       AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
 diff --git a/kernel/reboot.c b/kernel/reboot.c
 index eea91461e..e6b96de89 100644
 --- a/kernel/reboot.c
