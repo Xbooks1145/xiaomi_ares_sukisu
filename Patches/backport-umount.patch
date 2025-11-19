@@ -1,3 +1,12 @@
+From a90e18e1f647bf170d8dbaaef405dda3ba0d2b64 Mon Sep 17 00:00:00 2001
+From: MerCuJerry <mercujerry@gmail.com>
+Date: Wed, 19 Nov 2025 11:29:44 +0800
+Subject: [PATCH] backport umount
+
+---
+ fs/namespace.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
 diff --git a/fs/namespace.c b/fs/namespace.c
 index 30772b12a..b59e1054e 100644
 --- a/fs/namespace.c
@@ -42,4 +51,6 @@ index 30772b12a..b59e1054e 100644
  /*
   * Now umount can handle mount points as well as block devices.
   * This is important for filesystems which use unnamed block devices.
---
+-- 
+2.52.0
+
