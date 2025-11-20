@@ -8,13 +8,8 @@ on:
         required: false
         default: false
         type: boolean
-      enable_feature_susfs:
-        description: "是否启用susfs"
-        required: false
-        default: true
-        type: boolean
       SUKISU_BRANCH:
-        description: 'SukiSU 分支名称或修订版（仅在启用susfs时使用）'
+        description: 'SukiSU 分支名称或修订版'
         required: true
         default: 'susfs-main'
 
@@ -57,30 +52,26 @@ jobs:
       - name: Get Kernel Source Code
         uses: actions/checkout@v5
         with:
-          repository: Tkpointz/android_kernel_aresin
-          ref: U
+          repository: MerCuJerry/android_kernel_aresin
+          ref: U-dev
           path: kernel
       
       - name: Setup Cross-compile toolchain
         run: |
           mkdir -p toolchain
           cd toolchain
-          wget -q https://github.com/Mandi-Sa/clang/releases/download/amd64-kernel-arm_static-22/llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251019.7z
-          7za x llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251019.7z
-          rm llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251019.7z
+          wget -q https://github.com/Mandi-Sa/clang/releases/download/amd64-kernel-arm_static-22/llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
+          7za x llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
+          rm llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
       
       - name: Set up SukiSU
         working-directory: kernel
         run: |
           echo DATE=$(date +%F) >> $GITHUB_ENV
-          if [ "${{ inputs.enable_feature_susfs }}" = "true" ]; then
-            export BRANCH=${{ inputs.SUKISU_BRANCH }}
-          else
-            export BRANCH=nongki
-          fi
+          export BRANCH=${{ inputs.SUKISU_BRANCH }}
           curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
           cd ./KernelSU
-          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 10700)
+          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 40000 "-" 2815)
           echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
           sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
@@ -91,14 +82,12 @@ jobs:
           path: sukisu_patch
 
       - name: Get susfs4ksu
-        if: ${{ inputs.enable_feature_susfs }}
         run: |
           git clone -b kernel-4.14 --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* $GITHUB_WORKSPACE/kernel/fs/
           cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* $GITHUB_WORKSPACE/kernel/include/linux/
 
       - name: Get susfs Update patch
-        if: ${{ inputs.enable_feature_susfs }}
         uses: actions/checkout@v5
         with:
           repository: JackA1ltman/NonGKI_Kernel_Build_2nd
@@ -109,14 +98,9 @@ jobs:
       - name: Patch Kernel
         working-directory: kernel
         run: |
-          patch -p1 -R < $GITHUB_WORKSPACE/Patches/original-ksu.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/fix-build-error.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/backport-umount.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/backport-set-memory.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/scope_min.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/sukisu-syscall-hooks.patch
 
       - name: Apply KernelPatch for SUSFS
-        if: ${{ inputs.enable_feature_susfs }}
         working-directory: kernel
         run: |
           patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
@@ -127,10 +111,9 @@ jobs:
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix.patch
           patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2001_4.14.patch || true
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1513_4.14_fix_after.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/seccomp.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch
 
       - name: Copy defconfig
         run: |
