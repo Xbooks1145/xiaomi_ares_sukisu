@@ -57,7 +57,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: MerCuJerry/android_kernel_aresin
-          ref: ${{ inputs.SUKISU_BRANCH }}
+          ref: ${{ inputs.SOURCECODE_BRANCH }}
           path: kernel
       
       - name: Setup Cross-compile toolchain
