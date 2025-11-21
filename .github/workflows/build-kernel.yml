@@ -8,6 +8,10 @@ on:
         required: false
         default: false
         type: boolean
+      SOURCECODE_BRANCH:
+        description: '源码分支名称或修订版'
+        required: true
+        default: 'U-dev'
       SUKISU_BRANCH:
         description: 'SukiSU 分支名称或修订版'
         required: true
@@ -53,7 +57,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           repository: MerCuJerry/android_kernel_aresin
-          ref: U-dev
+          ref: ${{ inputs.SUKISU_BRANCH }}
           path: kernel
       
       - name: Setup Cross-compile toolchain
