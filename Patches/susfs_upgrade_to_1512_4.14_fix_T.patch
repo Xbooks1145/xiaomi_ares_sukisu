@@ -1,0 +1,39 @@
+From c38b982416d4523dd72c586cbb698fa03202a024 Mon Sep 17 00:00:00 2001
+From: MerCuJerry <mercujerry@gmail.com>
+Date: Fri, 21 Nov 2025 23:07:06 +0800
+Subject: [PATCH] susfs_upgrade_to_1512_4.14_T
+
+---
+ fs/proc/base.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index 0a5841e890fd..746249681a1f 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -874,6 +874,22 @@ static ssize_t mem_rw(struct file *file, char __user *buf,
+ 
+ 	while (count > 0) {
+ 		int this_len = min_t(int, count, PAGE_SIZE);
++#ifdef CONFIG_KSU_SUSFS_SUS_MAP
++		vma = find_vma(mm, addr);
++		if (vma && vma->vm_file) {
++			struct inode *inode = file_inode(vma->vm_file);
++			if (unlikely(inode->i_mapping->flags & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
++				if (write) {
++					copied = -EFAULT;
++				} else {
++					copied = -EIO;
++				}
++				*ppos = addr;
++				mmput(mm);
++				goto free;
++			}
++		}
++#endif
+ 
+ 		if (write && copy_from_user(page, buf, this_len)) {
+ 			copied = -EFAULT;
+-- 
+2.52.0
+
