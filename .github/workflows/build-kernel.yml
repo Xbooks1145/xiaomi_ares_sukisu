@@ -129,7 +129,7 @@ jobs:
             echo "CONFIG_KALLSYMS_ALL=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
             echo "CONFIG_KPM=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
           fi
-          cat $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append >> $GITHUB_WORKSPACE/kernel/arch/arm64/configs
+          cat $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append >> $GITHUB_WORKSPACE/kernel/arch/arm64/configs/ares_user_defconfig
       
       - name: Build Kernel for K40GE
         working-directory: kernel
