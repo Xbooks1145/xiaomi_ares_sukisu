@@ -160,10 +160,14 @@ jobs:
             ./magiskboot unpack boot.img
             cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel
             ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}.img
+            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./kernel
+            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
 
       - name: Upload repacked boot image
         uses: actions/upload-artifact@v4
         with:
           name: K40GE_SukiSU_${{ env.KSUVER }}
-          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
+          path: |
+            Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
+            Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
           compression-level: 9
