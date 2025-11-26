@@ -160,7 +160,7 @@ jobs:
             ./magiskboot unpack boot.img
             cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel
             ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}.img
-            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./kernel
+            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./dtb
             ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
 
       - name: Upload repacked boot image
