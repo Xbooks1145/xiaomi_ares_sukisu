@@ -167,7 +167,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: K40GE_SukiSU_${{ env.KSUVER }}
-          path: |
-            Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
-            Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
+          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
+          compression-level: 9
+      
+      - name: Upload repacked boot image with new dtb
+        uses: actions/upload-artifact@v4
+        with:
+          name: K40GE_SukiSU_${{ env.KSUVER }}_new_dtb
+          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
           compression-level: 9
