@@ -64,11 +64,8 @@ jobs:
         run: |
           mkdir -p toolchain
           cd toolchain
-          # 替换为指定的 clang 下载链接
           wget -q https://github.com/ZyCromerZ/Clang/releases/download/10.0.1-20220724-release/Clang-10.0.1-20220724.tar.gz
-          # 解压 tar.gz 格式文件（原文件为 7z，现替换为 tar.gz）
           tar -xzf Clang-10.0.1-20220724.tar.gz
-          # 删除下载的压缩包
           rm Clang-10.0.1-20220724.tar.gz
       
       - name: Set up SukiSU
