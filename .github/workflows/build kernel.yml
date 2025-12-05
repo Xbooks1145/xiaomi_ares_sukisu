@@ -103,6 +103,16 @@ jobs:
         working-directory: kernel
         run: |
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
+      
+      - name: Patch ReKernel for Kernel
+        run: |
+          cd $GITHUB_WORKSPACE/device_kernel/
+          cp /tmp/Patches/Rekernel/rekernel_patches.sh ./
+          bash rekernel_patches.sh
+
+          mkdir -p drivers/rekernel
+          cp /tmp/Patches/Rekernel/rekernel_extra.patch ./
+          patch -p1 < rekernel_extra.patch || true
 
       - name: Apply KernelPatch for SUSFS
         working-directory: kernel
