@@ -15,7 +15,7 @@ on:
       SUKISU_BRANCH:
         description: 'SukiSU 分支名称或修订版'
         required: true
-        default: 'susfs-main'
+        default: 'builtin'
 
 jobs:
   build:
