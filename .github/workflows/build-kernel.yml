@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      enable_rekernel:
+        description: "是否启用ReKernel"
+        required: false
+        default: false
+        type: boolean
       SOURCECODE_BRANCH:
         description: '源码分支名称或修订版'
         required: true
@@ -26,6 +31,7 @@ jobs:
       CCACHE_HARDLINK: "true"
       CCACHE_DIR: /home/runner/.ccache
       CCACHE_MAXSIZE: 8G
+      REKERNEL_ENABLE: ${{ inputs.enable_rekernel && 'true' || 'false' }}
     strategy:
       fail-fast: false
     name: Build Kernel for K40GE
@@ -122,6 +128,20 @@ jobs:
           if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
             patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
           fi
+
+      - name: Patch ReKernel
+        if: env.REKERNEL_ENABLE == 'true'
+        shell: bash
+        working-directory: kernel
+        run: |
+          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ./
+          bash rekernel_patches.sh
+
+          mkdir -p drivers/rekernel
+          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ./
+          patch -p1 < rekernel_extra.patch || true
+
+          echo "Patched Re:Kernel for your kernel successfully."
 
       - name: Copy defconfig
         run: |
