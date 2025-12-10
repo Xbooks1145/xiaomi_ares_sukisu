@@ -1,9 +1,14 @@
-@@
- /* existing content... */
+diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
+index 1111111..2222222 100644
+--- a/include/linux/cgroup.h
++++ b/include/linux/cgroup.h
+@@ -100,6 +100,13 @@ struct cgroup_taskset;
+ 
+ /* existing content… */
  
 +#ifdef CONFIG_CGROUP_FREEZER
-+/* Freezer controller backport prototypes for kernels lacking
-+ * the full freezer controller. Implemented in kernel/cgroup/freezer_backport.c
++/*
++ * Freezer controller backport prototypes
 + */
 +extern void cgroup_enter_frozen(void);
 +extern void cgroup_leave_frozen(bool async);
