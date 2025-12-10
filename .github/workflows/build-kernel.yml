@@ -73,7 +73,7 @@ jobs:
       - name: Get Kernel Source Code
         uses: actions/checkout@v5
         with:
-          repository: Xbookd1145/android_kernel_aresin
+          repository: Xbooks1145/android_kernel_aresin
           ref: ${{ inputs.SOURCECODE_BRANCH }}
           path: kernel
       
