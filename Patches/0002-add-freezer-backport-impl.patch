@@ -1,18 +1,17 @@
+diff --git a/kernel/cgroup/freezer_backport.c b/kernel/cgroup/freezer_backport.c
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/kernel/cgroup/freezer_backport.c
+@@ -0,0 +1,55 @@
 +/*
-+ * freezer_backport.c
-+ * Lightweight backport of cgroup freezer helpers for older kernels (4.14)
-+ *
-+ * Provides cgroup_enter_frozen() / cgroup_leave_frozen()
-+ * for compatibility with newer cgroup patches.
++ * Minimal freezer backport implementation for older kernels (4.14)
 + */
 +
-+#include <linux/types.h>
 +#include <linux/sched.h>
-+#include <linux/rcupdate.h>
-+#include <linux/sched/signal.h>
 +#include <linux/cgroup.h>
-+#include <linux/spinlock.h>
 +#include <linux/atomic.h>
++#include <linux/spinlock.h>
 +
 +static atomic_t __freezer_nesting = ATOMIC_INIT(0);
 +static DEFINE_SPINLOCK(freezer_lock);
@@ -20,7 +19,6 @@
 +void cgroup_enter_frozen(void)
 +{
 +    atomic_inc(&__freezer_nesting);
-+    /* Minimal compatibility layer. */
 +}
 +
 +void cgroup_leave_frozen(bool async)
