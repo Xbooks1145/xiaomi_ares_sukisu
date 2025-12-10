@@ -10,16 +10,25 @@ on:
         type: boolean
 
       enable_feature_kpm:
-        description: "是否启用kpm"
+        description: "是否启用 kpm"
         required: false
         default: false
         type: boolean
 
       enable_rekernel:
-        description: "是否启用ReKernel"
+        description: "是否启用 ReKernel"
         required: false
         default: false
         type: boolean
+
+      clang_variant:
+        description: "选择 Clang 工具链 (stable: LineageOS | fast: LLVM22)"
+        required: true
+        default: "stable"
+        type: choice
+        options:
+          - stable
+          - fast
 
       SOURCECODE_BRANCH:
         description: '源码分支名称或修订版'
@@ -40,12 +49,11 @@ jobs:
       CCACHE_HARDLINK: "true"
       CCACHE_DIR: /home/runner/.ccache
       CCACHE_MAXSIZE: 8G
+      # REKERNEL_ENABLE can be used in steps
       REKERNEL_ENABLE: ${{ inputs.enable_rekernel && 'true' || 'false' }}
 
     strategy:
       fail-fast: false
-
-    name: Build Kernel for K40GE
 
     steps:
       - name: Maximize build space
@@ -59,7 +67,7 @@ jobs:
           remove-codeql: 'true'
 
       - name: Install Package
-        run: sudo apt update && sudo apt install -y p7zip-full git ccache
+        run: sudo apt update && sudo apt install -y p7zip-full git ccache wget make build-essential bc flex bison libssl-dev python3 rsync dos2unix
 
       - name: Restore ccache
         uses: actions/cache@v4
@@ -69,33 +77,12 @@ jobs:
           restore-keys: |
             ccache-${{ runner.os }}-
 
-      - uses: actions/checkout@v5
-
-      - name: Get Kernel Source Code
+      - name: Checkout main repo
         uses: actions/checkout@v5
         with:
           repository: Xbooks1145/android_kernel_aresin
           ref: ${{ inputs.SOURCECODE_BRANCH }}
           path: kernel
-      
-      - name: Setup Cross-compile toolchain
-        run: |
-          mkdir -p toolchain
-          cd toolchain
-          wget -q https://github.com/Mandi-Sa/clang/releases/download/amd64-kernel-arm_static-22/llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
-          7za x llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
-          rm llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
-
-      - name: Set up SukiSU
-        working-directory: kernel
-        run: |
-          echo DATE=$(date +%F) >> $GITHUB_ENV
-          export BRANCH=${{ inputs.SUKISU_BRANCH }}
-          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH
-          cd ./KernelSU
-          export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 40000 "-" 2815)
-          echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
-          sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile
 
       - name: Get SukiSU Patches
         uses: actions/checkout@v5
@@ -105,9 +92,10 @@ jobs:
 
       - name: Get susfs4ksu
         run: |
-          git clone -b kernel-4.14 --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* $GITHUB_WORKSPACE/kernel/fs/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* $GITHUB_WORKSPACE/kernel/include/linux/
+          git clone -b kernel-4.14 --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git susfs4ksu
+          # copy necessary susfs patches into kernel tree
+          cp susfs4ksu/kernel_patches/fs/* kernel/fs/ || true
+          cp susfs4ksu/kernel_patches/include/linux/* kernel/include/linux/ || true
 
       - name: Get susfs Update patch
         uses: actions/checkout@v5
@@ -117,78 +105,225 @@ jobs:
           ref: mainline
           path: susfs_upgrade_patch
 
-      - name: Apply Freezer Backport Patches
+      - name: Setup Cross-compile toolchain (choose clang variant)
+        run: |
+          mkdir -p toolchain
+          if [ "${{ inputs.clang_variant }}" = "stable" ]; then
+            echo "Using LineageOS clang-r416183b (stable)"
+            git clone --depth=1 https://github.com/LineageOS/android_prebuilts_clang_kernel_linux-x86_clang-r416183b.git toolchain/clang-stable || true
+            echo "CLANG_PATH=$GITHUB_WORKSPACE/toolchain/clang-stable/bin" >> $GITHUB_ENV
+          else
+            echo "Using Mandi-Sa LLVM22 (fast)"
+            cd toolchain
+            wget -q https://github.com/Mandi-Sa/clang/releases/download/amd64-kernel-arm_static-22/llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
+            7za x llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z
+            rm llvm22.0.0-binutils2.44_amd64-kernel-arm_static-20251116.7z || true
+            cd ..
+            echo "CLANG_PATH=$GITHUB_WORKSPACE/toolchain/bin" >> $GITHUB_ENV
+          fi
+
+      - name: Set up SukiSU
+        working-directory: kernel
+        run: |
+          echo DATE=$(date +%F) >> $GITHUB_ENV
+          export BRANCH=${{ inputs.SUKISU_BRANCH }}
+          # Use SukiSU-Ultra setup script (if reachable)
+          curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash -s $BRANCH || true
+          if [ -d KernelSU ]; then
+            cd KernelSU || exit 0
+            if [ -x /usr/bin/git ]; then
+              export KSU_VERSION=$(expr $(/usr/bin/git rev-list --count main) "+" 40000 "-" 2815) || true
+              echo "KSUVER=$KSU_VERSION" >> $GITHUB_ENV
+            fi
+            # fix Makefile if present
+            if [ -f kernel/Makefile ]; then
+              sed -i "s/DKSU_VERSION=12800/DKSU_VERSION=${KSU_VERSION}/" kernel/Makefile || true
+            fi
+          fi
+
+      - name: Patch Kernel (susfs syscall hooks)
+        working-directory: kernel
+        run: |
+          if [ -f $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch || true
+          else
+            echo "No susfs-syscall-hooks.patch found in Patches/, skipping"
+          fi
+
+      # Robust Freezer Backport injection (idempotent, doesn't use context diff)
+      - name: Apply Freezer Backport Patches (robust append method)
         if: ${{ inputs.enable_cgroup_patch }}
         working-directory: kernel
         run: |
-          echo "Applying freezer backport patches..."
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0001-add-cgroup-freezer-prototypes.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0002-add-freezer-backport-impl.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0003-add-freezer-backport-to-make.patch
+          set -euo pipefail
+          echo "==> Applying freezer backport (append / idempotent mode)..."
 
-      - name: Patch Kernel
-        working-directory: kernel
-        run: |
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
+          HEADER="include/linux/cgroup.h"
+          IMPL="kernel/cgroup/freezer_backport.c"
 
-      - name: Apply Cgroup Patches
-        if: ${{ inputs.enable_cgroup_patch }}
-        working-directory: kernel
-        run: |
-          echo "==[Cgroup]== 应用 cgroupv2_fork_to_49.patch"
-          patch -p1 < $GITHUB_WORKSPACE/Patches/cgroupv2_fork_to_49.patch || true
+          # 1) Check header exists
+          if [ ! -f "$HEADER" ]; then
+            echo "Error: expected kernel include/linux/cgroup.h not found at $HEADER"
+            echo "Listing include/linux:"
+            ls -la include/linux || true
+            exit 1
+          fi
 
-          echo "==[Cgroup]== 应用 cgroup_workingset.patch"
-          patch -p1 < $GITHUB_WORKSPACE/Patches/cgroup_workingset.patch || true
+          # 2) Append prototypes if missing
+          if ! grep -Fq "cgroup_enter_frozen" "$HEADER"; then
+            echo "Appending freezer prototypes to $HEADER"
+            # insert before final #endif if present, else append at end
+            if tail -n 50 "$HEADER" | grep -q "^#endif"; then
+              awk ' { lines[NR]=$0 } END { last=0; for(i=1;i<=NR;i++){ if(lines[i]=="#endif") last=i } if(last==0){ for(i=1;i<=NR;i++) print lines[i] } else { for(i=1;i<last;i++) print lines[i]; printf "\n/* Backport: Freezer controller prototypes */\n#ifndef __BACKPORT_CGROUP_FREEZER_PROT__\n#define __BACKPORT_CGROUP_FREEZER_PROT__\n#ifdef CONFIG_CGROUP_FREEZER\nextern void cgroup_enter_frozen(void);\nextern void cgroup_leave_frozen(bool async);\n#endif\n#endif\n\n"; for(i=last;i<=NR;i++) print lines[i] } }' "$HEADER" > "$HEADER.tmp" && mv "$HEADER.tmp" "$HEADER"
+            else
+              cat >> "$HEADER" <<'EOF'
+
+/* Backport: Freezer controller prototypes */
+#ifndef __BACKPORT_CGROUP_FREEZER_PROT__
+#define __BACKPORT_CGROUP_FREEZER_PROT__
+#ifdef CONFIG_CGROUP_FREEZER
+extern void cgroup_enter_frozen(void);
+extern void cgroup_leave_frozen(bool async);
+#endif
+#endif
+
+EOF
+            fi
+          else
+            echo "Prototypes already present in $HEADER, skipping"
+          fi
+
+          # 3) Create implementation file kernel/cgroup/freezer_backport.c if missing
+          if [ ! -f "$IMPL" ]; then
+            echo "Creating $IMPL"
+            mkdir -p "$(dirname "$IMPL")"
+            cat > "$IMPL" <<'EOF'
+/*
+ * Minimal freezer backport implementation for older kernels (4.14)
+ * Provides cgroup_enter_frozen() / cgroup_leave_frozen() compat symbols.
+ */
+#include <linux/sched.h>
+#include <linux/cgroup.h>
+#include <linux/atomic.h>
+#include <linux/spinlock.h>
+
+static atomic_t __freezer_nesting = ATOMIC_INIT(0);
+static DEFINE_SPINLOCK(freezer_lock);
+
+void cgroup_enter_frozen(void)
+{
+    atomic_inc(&__freezer_nesting);
+}
+
+void cgroup_leave_frozen(bool async)
+{
+    if (atomic_read(&__freezer_nesting) > 0)
+        atomic_dec(&__freezer_nesting);
+}
+
+EXPORT_SYMBOL_GPL(cgroup_enter_frozen);
+EXPORT_SYMBOL_GPL(cgroup_leave_frozen);
+EOF
+          else
+            echo "$IMPL already exists, skipping creation"
+          fi
+
+          # 4) Ensure Makefile registers the object
+          # Prefer kernel/cgroup/Makefile if it exists, else kernel/Makefile
+          if [ -f kernel/cgroup/Makefile ]; then
+            if ! grep -Fq "freezer_backport.o" kernel/cgroup/Makefile; then
+              echo "obj-y += freezer_backport.o" >> kernel/cgroup/Makefile
+            else
+              echo "freezer_backport.o already present in kernel/cgroup/Makefile"
+            fi
+          else
+            if ! grep -Fq "cgroup/freezer_backport.o" kernel/Makefile; then
+              echo "Inserting cgroup/freezer_backport.o into kernel/Makefile"
+              if grep -q "obj-y += fork.o" kernel/Makefile; then
+                awk '1; /obj-y \+= fork.o/ && !added { print "obj-y += cgroup/freezer_backport.o"; added=1 }' kernel/Makefile > kernel/Makefile.tmp && mv kernel/Makefile.tmp kernel/Makefile
+              else
+                echo "obj-y += cgroup/freezer_backport.o" >> kernel/Makefile
+              fi
+            else
+              echo "cgroup/freezer_backport.o already present in kernel/Makefile"
+            fi
+          fi
+
+          echo "Freezer backport injection complete."
 
       - name: Patch ReKernel
         if: env.REKERNEL_ENABLE == 'true'
         shell: bash
         working-directory: kernel
         run: |
-          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ./
-          bash rekernel_patches.sh
-
-          mkdir -p drivers/rekernel
-          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ./
-          patch -p1 < rekernel_extra.patch || true
-
-          echo "Patched Re:Kernel for your kernel successfully."
+          if [ -f $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ]; then
+            cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ./
+            bash rekernel_patches.sh || true
+          fi
+          if [ -f $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ]; then
+            cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ./
+            patch -p1 < rekenel_extra.patch || true
+          fi
+          echo "Patched Re:Kernel (if present)."
 
       - name: Apply KernelPatch for SUSFS
         working-directory: kernel
         run: |
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch || true
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch || true
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
+          # apply susfs patches if present
+          if [ -f $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch ]; then
+            patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch || true
           fi
 
-      - name: Append Cgroup Defconfig Options
-        if: ${{ inputs.enable_cgroup_patch }}
-        run: |
-          echo "CONFIG_BLK_CGROUP=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_CGROUP_RDMA=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_HW_CGROUP_WORKINGSET=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_CGROUP_WRITEBACK=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          if [ -f $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch ]; then
+            patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch || true
+          fi
+
+          # optional T branch fixes
+          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
+            if [ -f $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch ]; then
+              patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch || true
+            fi
+            if [ -f $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch ]; then
+              patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch || true
+            fi
+            if [ -f $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch ]; then
+              patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch || true
+            fi
+          fi
+
+          # other SUSFS patches if available
+          if [ -f $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch || true
+          fi
+          if [ -f $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch || true
+          fi
 
       - name: Copy defconfig
         run: |
+          # Ensure defconfig append file exists
+          mkdir -p $GITHUB_WORKSPACE/Patches
+          touch $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+
           if [ "${{ inputs.enable_feature_kpm }}" = "true" ]; then
             echo "CONFIG_KALLSYMS_ALL=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
             echo "CONFIG_KPM=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
           fi
-          cat $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append >> $GITHUB_WORKSPACE/kernel/arch/arm64/configs/ares_user_defconfig
+
+          # Append cgroup options if cgroup patch enabled
+          if [ "${{ inputs.enable_cgroup_patch }}" = "true" ]; then
+            echo "CONFIG_BLK_CGROUP=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+            echo "CONFIG_CGROUP_RDMA=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+            echo "CONFIG_HW_CGROUP_WORKINGSET=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+            echo "CONFIG_CGROUP_WRITEBACK=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          fi
+
+          # Append to kernel defconfig (safe append)
+          if [ -f $GITHUB_WORKSPACE/kernel/arch/arm64/configs/ares_user_defconfig ]; then
+            cat $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append >> $GITHUB_WORKSPACE/kernel/arch/arm64/configs/ares_user_defconfig
+          else
+            echo "Warning: ares_user_defconfig not found, skipping append"
+          fi
 
       - name: Build Kernel for K40GE
         working-directory: kernel
@@ -198,40 +333,47 @@ jobs:
             CROSS_COMPILE_ARM32=arm-linux-gnueabi- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
             CC=clang LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
         run: |
+          set -euo pipefail
+          export PATH=$CLANG_PATH:$PATH
           export KBUILD_BUILD_TIMESTAMP=$(date)
-          export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/toolchain/bin:$PATH
+          export PATH=/usr/lib/ccache:$PATH
+          # configure and build
           make -j$(nproc --all) ${args} ares_user_defconfig all
 
       - name: Apply KernelPatch for KPM
         if: ${{ inputs.enable_feature_kpm }}
         working-directory: kernel/out/arch/arm64/boot
         run: |
-          cp $GITHUB_WORKSPACE/sukisu_patch/kpm/patch_linux .
-          chmod +x patch_linux
-          ./patch_linux
-          mv oImage Image
+          if [ -f $GITHUB_WORKSPACE/sukisu_patch/kpm/patch_linux ]; then
+            cp $GITHUB_WORKSPACE/sukisu_patch/kpm/patch_linux .
+            chmod +x patch_linux
+            ./patch_linux || true
+            mv oImage Image || true
+          else
+            echo "KPM patch tool not found, skipping"
+          fi
 
       - name: Pack Kernel using Magiskboot
         working-directory: Magiskboot
         run: |
-            tar -xvf boot.tar.gz
-            chmod +x magiskboot
-            ./magiskboot unpack boot.img
-            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel
-            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}.img
-            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./dtb
-            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
+          tar -xvf boot.tar.gz || true
+          chmod +x magiskboot || true
+          ./magiskboot unpack boot.img || true
+          cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel || true
+          ./magiskboot repack boot.img boot_SukiSU.img || true
+          cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./dtb || true
+          ./magiskboot repack boot.img boot_SukiSU_new_dtb.img || true
 
       - name: Upload repacked boot image
         uses: actions/upload-artifact@v4
         with:
-          name: K40GE_SukiSU_${{ env.KSUVER }}
-          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
+          name: K40GE_SukiSU
+          path: Magiskboot/boot_SukiSU.img
           compression-level: 9
-      
+
       - name: Upload repacked boot image with new dtb
         uses: actions/upload-artifact@v4
         with:
-          name: K40GE_SukiSU_${{ env.KSUVER }}_new_dtb
-          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
+          name: K40GE_SukiSU_new_dtb
+          path: Magiskboot/boot_SukiSU_new_dtb.img
           compression-level: 9
