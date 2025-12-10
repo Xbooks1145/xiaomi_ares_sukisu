@@ -31,14 +31,14 @@ on:
           - fast
 
       SOURCECODE_BRANCH:
-        description: '源码分支名称或修订版'
+        description: "源码分支名称或修订版"
         required: true
-        default: 'U-dev'
+        default: "U-dev"
 
       SUKISU_BRANCH:
-        description: 'SukiSU 分支名称或修订版'
+        description: "SukiSU 分支名称或修订版"
         required: true
-        default: 'builtin'
+        default: "builtin"
 
 jobs:
   build:
