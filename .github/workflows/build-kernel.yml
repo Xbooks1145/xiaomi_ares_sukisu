@@ -151,4 +151,80 @@ jobs:
         working-directory: kernel
         run: |
           patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
-          patch -p1 < $GITHUB_WOR
+          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch || true
+          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch
+          fi
+          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch || true
+          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch
+          fi
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch
+          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch
+          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
+          fi
+
+      # ★★★ 新增：Cgroup Defconfig 追加 ★★★
+      - name: Append Cgroup Defconfig Options
+        if: ${{ inputs.enable_cgroup_patch }}
+        run: |
+          echo "CONFIG_BLK_CGROUP=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          echo "CONFIG_CGROUP_RDMA=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          echo "CONFIG_HW_CGROUP_WORKINGSET=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          echo "CONFIG_CGROUP_WRITEBACK=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+
+      - name: Copy defconfig
+        run: |
+          if [ "${{ inputs.enable_feature_kpm }}" = "true" ]; then
+            echo "CONFIG_KALLSYMS_ALL=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+            echo "CONFIG_KPM=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
+          fi
+          cat $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append >> $GITHUB_WORKSPACE/kernel/arch/arm64/configs/ares_user_defconfig
+
+      - name: Build Kernel for K40GE
+        working-directory: kernel
+        env:
+          args: |+
+            LLVM=1 ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu-
+            CROSS_COMPILE_ARM32=arm-linux-gnueabi- CROSS_COMPILE_COMPAT=arm-linux-gnueabi-
+            CC=clang LD=ld.lld HOSTLD=ld.lld O=out KCFLAGS+=-O2 KCFLAGS_PERF+=-O3
+        run: |
+          export KBUILD_BUILD_TIMESTAMP=$(date)
+          export PATH=/usr/lib/ccache:$GITHUB_WORKSPACE/toolchain/bin:$PATH
+          make -j$(nproc --all) ${args} ares_user_defconfig all
+
+      - name: Apply KernelPatch for KPM
+        if: ${{ inputs.enable_feature_kpm }}
+        working-directory: kernel/out/arch/arm64/boot
+        run: |
+          cp $GITHUB_WORKSPACE/sukisu_patch/kpm/patch_linux .
+          chmod +x patch_linux
+          ./patch_linux
+          mv oImage Image
+
+      - name: Pack Kernel using Magiskboot
+        working-directory: Magiskboot
+        run: |
+            tar -xvf boot.tar.gz
+            chmod +x magiskboot
+            ./magiskboot unpack boot.img
+            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/Image ./kernel
+            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}.img
+            cp $GITHUB_WORKSPACE/kernel/out/arch/arm64/boot/dtb ./dtb
+            ./magiskboot repack boot.img boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
+
+      - name: Upload repacked boot image
+        uses: actions/upload-artifact@v4
+        with:
+          name: K40GE_SukiSU_${{ env.KSUVER }}
+          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}.img
+          compression-level: 9
+      
+      - name: Upload repacked boot image with new dtb
+        uses: actions/upload-artifact@v4
+        with:
+          name: K40GE_SukiSU_${{ env.KSUVER }}_new_dtb
+          path: Magiskboot/boot_SukiSU_${{ env.KSUVER }}_new_dtb.img
+          compression-level: 9
