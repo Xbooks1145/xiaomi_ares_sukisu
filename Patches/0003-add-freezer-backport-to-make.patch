@@ -1,0 +1,6 @@
+*** Begin Patch
+*** Update File: kernel/Makefile
+@@
+ obj-y += fork.o
++obj-y += cgroup/freezer_backport.o
+*** End Patch
