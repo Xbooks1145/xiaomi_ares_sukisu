@@ -1,4 +1,3 @@
-*** Update File: include/linux/cgroup.h
 @@
  /* existing content... */
  
@@ -9,4 +8,3 @@
 +extern void cgroup_enter_frozen(void);
 +extern void cgroup_leave_frozen(bool async);
 +#endif
-+
