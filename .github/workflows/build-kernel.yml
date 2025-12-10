@@ -117,12 +117,20 @@ jobs:
           ref: mainline
           path: susfs_upgrade_patch
 
+      - name: Apply Freezer Backport Patches
+        if: ${{ inputs.enable_cgroup_patch }}
+        working-directory: kernel
+        run: |
+          echo "Applying freezer backport patches..."
+          patch -p1 < $GITHUB_WORKSPACE/Patches/0001-add-cgroup-freezer-prototypes.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/0002-add-freezer-backport-impl.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/0003-add-freezer-backport-to-make.patch
+
       - name: Patch Kernel
         working-directory: kernel
         run: |
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
 
-      # ★★★ 新增：Cgroup Patch（启用时插入该模块） ★★★
       - name: Apply Cgroup Patches
         if: ${{ inputs.enable_cgroup_patch }}
         working-directory: kernel
@@ -166,7 +174,6 @@ jobs:
             patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
           fi
 
-      # ★★★ 新增：Cgroup Defconfig 追加 ★★★
       - name: Append Cgroup Defconfig Options
         if: ${{ inputs.enable_cgroup_patch }}
         run: |
