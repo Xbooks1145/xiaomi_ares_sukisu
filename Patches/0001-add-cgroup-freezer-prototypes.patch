@@ -22,4 +22,4 @@ index e6a8f3d..abcd123 100644
 +
  /**  
   * css_for_each_child - iterate through children of a css  
-  * @pos: the css * to use as the loop cursor
+  * @pos: the css * to use as the loop cursor  
