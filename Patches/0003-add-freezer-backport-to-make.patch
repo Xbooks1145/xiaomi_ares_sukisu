@@ -1,10 +1,18 @@
-diff --git a/kernel/Makefile b/kernel/Makefile
-index 1234567..7654321 100644
---- a/kernel/Makefile
-+++ b/kernel/Makefile
-@@ -15,6 +15,7 @@ obj-y += time/
- obj-y += locking/
- obj-y += power/
- obj-y += smp.o
-+obj-y += cgroup/freezer_backport.o
- obj-y += fork.o
+From 3333333333333333333333333333333333333333 Mon Sep 17 00:00:00 2001
+Subject: [PATCH 3/3] cgroup: add freezer_backport.o to Makefile
+
+---
+ kernel/cgroup/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/kernel/cgroup/Makefile b/kernel/cgroup/Makefile
+index 1234567..abcdef0 100644
+--- a/kernel/cgroup/Makefile
++++ b/kernel/cgroup/Makefile
+@@ -5,3 +5,6 @@ obj-y += cgroup.o
+ obj-y += cgroup-v1.o
+ obj-y += rstat.o
+ 
++#
++# Freezer backport support
++obj-y += freezer_backport.o
