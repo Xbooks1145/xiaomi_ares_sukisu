@@ -1,12 +1,18 @@
+From 2222222222222222222222222222222222222222 Mon Sep 17 00:00:00 2001
+Subject: [PATCH 2/3] cgroup: add freezer backport implementation
+
+---
+ kernel/cgroup/freezer_backport.c | 54 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 54 insertions(+)
+ create mode 100644 kernel/cgroup/freezer_backport.c
+
 diff --git a/kernel/cgroup/freezer_backport.c b/kernel/cgroup/freezer_backport.c
 new file mode 100644
-index 0000000..1111111
+index 0000000..bbbbbbb
 --- /dev/null
 +++ b/kernel/cgroup/freezer_backport.c
-@@ -0,0 +1,55 @@
-+/*
-+ * Minimal freezer backport implementation for older kernels (4.14)
-+ */
+@@ -0,0 +1,54 @@
++/* Minimal freezer backport for 4.14 aresin kernel */
 +
 +#include <linux/sched.h>
 +#include <linux/cgroup.h>
@@ -14,7 +20,6 @@ index 0000000..1111111
 +#include <linux/spinlock.h>
 +
 +static atomic_t __freezer_nesting = ATOMIC_INIT(0);
-+static DEFINE_SPINLOCK(freezer_lock);
 +
 +void cgroup_enter_frozen(void)
 +{
@@ -29,3 +34,4 @@ index 0000000..1111111
 +
 +EXPORT_SYMBOL_GPL(cgroup_enter_frozen);
 +EXPORT_SYMBOL_GPL(cgroup_leave_frozen);
++
