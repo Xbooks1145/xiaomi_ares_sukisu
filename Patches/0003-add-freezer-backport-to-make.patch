@@ -1,3 +1,10 @@
-@@
- obj-y += fork.o
+diff --git a/kernel/Makefile b/kernel/Makefile
+index 1234567..7654321 100644
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -15,6 +15,7 @@ obj-y += time/
+ obj-y += locking/
+ obj-y += power/
+ obj-y += smp.o
 +obj-y += cgroup/freezer_backport.o
+ obj-y += fork.o
