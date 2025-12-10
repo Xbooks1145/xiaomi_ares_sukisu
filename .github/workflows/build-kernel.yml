@@ -110,6 +110,20 @@ jobs:
         run: |
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
 
+      - name: Patch ReKernel
+        if: env.REKERNEL_ENABLE == 'true'
+        shell: bash
+        working-directory: kernel
+        run: |
+          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ./
+          bash rekernel_patches.sh
+
+          mkdir -p drivers/rekernel
+          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ./
+          patch -p1 < rekernel_extra.patch || true
+
+          echo "Patched Re:Kernel for your kernel successfully."
+
       - name: Apply KernelPatch for SUSFS
         working-directory: kernel
         run: |
@@ -128,20 +142,6 @@ jobs:
           if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
             patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
           fi
-
-      - name: Patch ReKernel
-        if: env.REKERNEL_ENABLE == 'true'
-        shell: bash
-        working-directory: kernel
-        run: |
-          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_patches.sh ./
-          bash rekernel_patches.sh
-
-          mkdir -p drivers/rekernel
-          cp $GITHUB_WORKSPACE/Patches/Rekernel/rekernel_extra.patch ./
-          patch -p1 < rekernel_extra.patch || true
-
-          echo "Patched Re:Kernel for your kernel successfully."
 
       - name: Copy defconfig
         run: |
