@@ -1,0 +1,9 @@
+diff --git a/kernel/cgroup/Makefile b/kernel/cgroup/Makefile
+index 1234567..89abcde 100644
+--- a/kernel/cgroup/Makefile
++++ b/kernel/cgroup/Makefile
+@@ -10,6 +10,7 @@ obj-y += cgroup.o
+ obj-y += cgroup-v1.o
+ obj-y += rstat.o
+ obj-y += cgroup-freezer.o
++obj-y += freezer_backport.o

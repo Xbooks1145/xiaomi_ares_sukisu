@@ -1,0 +1,39 @@
+diff --git a/kernel/cgroup/freezer_backport.c b/kernel/cgroup/freezer_backport.c
+new file mode 100644
+index 0000000..bbbbbbb
+--- /dev/null
++++ b/kernel/cgroup/freezer_backport.c
+@@ -0,0 +1,59 @@
++/*
++ * Minimal freezer backport implementation for 4.14 aresin kernel
++ * Provides cgroup_enter_frozen() and cgroup_leave_frozen()
++ */
++
++#include <linux/sched.h>
++#include <linux/cgroup.h>
++#include <linux/atomic.h>
++#include <linux/spinlock.h>
++#include <linux/errno.h>
++
++static atomic_t __freezer_nesting = ATOMIC_INIT(0);
++static DEFINE_SPINLOCK(__freezer_lock);
++
++void cgroup_enter_frozen(void)
++{
++    /*
++     * Minimal placeholder: increment nesting count.
++     * Real freezer behavior requires more integration with the
++     * freezer controller and task state transitions.
++     */
++    atomic_inc(&__freezer_nesting);
++}
++
++void cgroup_leave_frozen(bool async)
++{
++    if (atomic_read(&__freezer_nesting) > 0)
++        atomic_dec(&__freezer_nesting);
++}
++
++EXPORT_SYMBOL_GPL(cgroup_enter_frozen);
++EXPORT_SYMBOL_GPL(cgroup_leave_frozen);
++
