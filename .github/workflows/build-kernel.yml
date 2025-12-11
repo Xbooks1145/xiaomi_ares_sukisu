@@ -119,8 +119,8 @@ jobs:
         run: |
           echo "Applying freezer backport patches..."
           patch -p1 < $GITHUB_WORKSPACE/Patches/0001-add-cgroup-freezer-prototypes.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0002-add-freezer-backport-impl.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0003-add-freezer-backport-to-make.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/0002-freezer-backport-impl.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/0003-add-freezer-backport-makefile.patch
       - name: Patch Kernel
         working-directory: kernel
         run: |
