@@ -3,12 +3,6 @@ name: Build Kernel
 on:
   workflow_dispatch:
     inputs:
-      enable_cgroup_patch:
-        description: "是否启用 Cgroup (Cgroupv2 + Workingset) 补丁"
-        required: false
-        default: false
-        type: boolean
-
       enable_feature_kpm:
         description: "是否启用kpm"
         required: false
@@ -121,15 +115,6 @@ jobs:
         run: |
           patch -p1 < $GITHUB_WORKSPACE/Patches/susfs-syscall-hooks.patch
           
-      - name: Apply Cgroup Patches
-        if: ${{ inputs.enable_cgroup_patch }}
-        working-directory: kernel
-        run: |
-          echo "==[Cgroup]== 应用 cgroupv2_fork_to_49.patch"
-          patch -p1 < $GITHUB_WORKSPACE/Patches/cgroupv2_fork_to_49.patch || true
-          echo "==[Cgroup]== 应用 cgroup_workingset.patch"
-          patch -p1 < $GITHUB_WORKSPACE/Patches/cgroup_workingset.patch || true
-          
       - name: Patch ReKernel
         if: env.REKERNEL_ENABLE == 'true'
         shell: bash
@@ -160,14 +145,6 @@ jobs:
           if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
             patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
           fi
-          
-      - name: Append Cgroup Defconfig Options
-        if: ${{ inputs.enable_cgroup_patch }}
-        run: |
-          echo "CONFIG_BLK_CGROUP=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_CGROUP_RDMA=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_HW_CGROUP_WORKINGSET=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
-          echo "CONFIG_CGROUP_WRITEBACK=y" >> $GITHUB_WORKSPACE/Patches/ares_user_defconfig_append
           
       - name: Copy defconfig
         run: |
