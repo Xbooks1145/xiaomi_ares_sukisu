@@ -113,14 +113,21 @@ jobs:
           ref: mainline
           path: susfs_upgrade_patch
 
+      - name: Extract freezer patches
+        if: ${{ inputs.enable_cgroup_patch }}
+        run: |
+          echo "Extracting freezer patches..."
+          unzip -o $GITHUB_WORKSPACE/Patches/freezer_backport_patches_full.zip -d $GITHUB_WORKSPACE/Patches/freezer_patches
+
       - name: Apply Freezer Backport Patches
         if: ${{ inputs.enable_cgroup_patch }}
         working-directory: kernel
         run: |
           echo "Applying freezer backport patches..."
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0001-add-cgroup-freezer-prototypes.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0002-freezer-backport-impl.patch
-          patch -p1 < $GITHUB_WORKSPACE/Patches/0003-add-freezer-backport-makefile.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/freezer_patches/0001-add-cgroup-freezer-prototypes.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/freezer_patches/0002-freezer-backport-impl.patch
+          patch -p1 < $GITHUB_WORKSPACE/Patches/freezer_patches/0003-add-freezer-backport-makefile.patch
+          
       - name: Patch Kernel
         working-directory: kernel
         run: |
