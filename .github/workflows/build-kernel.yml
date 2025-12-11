@@ -116,49 +116,6 @@ jobs:
           ref: mainline
           path: susfs_upgrade_patch
 
-      # --- Freezer Backport ZIP 解压与补丁应用 ---
-      - name: Extract freezer patches
-        if: ${{ inputs.enable_cgroup_patch }}
-        run: |
-          set -euxo pipefail
-          ZIP_PATH="${{ github.workspace }}/Patches/freezer_backport_patches_full.zip"
-          EXTRACT_DIR="${{ github.workspace }}/Patches/freezer_patches"
-          echo "Looking for freezer ZIP at: $ZIP_PATH"
-          if [ ! -f "$ZIP_PATH" ]; then
-            echo "ERROR: freezer ZIP not found at $ZIP_PATH"
-            ls -la "${{ github.workspace }}/Patches" || true
-            exit 1
-          fi
-          mkdir -p "$EXTRACT_DIR"
-          echo "Unzipping freezer patches to $EXTRACT_DIR"
-          unzip -o "$ZIP_PATH" -d "$EXTRACT_DIR"
-          ls -la "$EXTRACT_DIR"
-
-      - name: Apply Freezer Backport Patches
-        if: ${{ inputs.enable_cgroup_patch }}
-        working-directory: kernel
-        run: |
-          set -euxo pipefail
-          P1="${{ github.workspace }}/Patches/freezer_patches/0001-add-cgroup-freezer-prototypes.patch"
-          P2="${{ github.workspace }}/Patches/freezer_patches/0002-freezer-backport-impl.patch"
-          P3="${{ github.workspace }}/Patches/freezer_patches/0003-add-freezer-backport-makefile.patch"
-
-          for p in "$P1" "$P2" "$P3"; do
-            if [ ! -f "$p" ]; then
-              echo "ERROR: missing patch $p"
-              ls -la "$(dirname "$p")" || true
-              exit 1
-            fi
-          done
-
-          echo "Applying patch 1: $P1"
-          patch -p1 < "$P1"
-          echo "Applying patch 2: $P2"
-          patch -p1 < "$P2"
-          echo "Applying patch 3: $P3"
-          patch -p1 < "$P3"
-          echo "Freezer backport applied successfully."
-      # ---------------------------------------------
       - name: Patch Kernel
         working-directory: kernel
         run: |
