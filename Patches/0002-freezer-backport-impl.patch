@@ -1,0 +1,18 @@
+diff --git a/kernel/freezer_backport.c b/kernel/freezer_backport.c
+new file mode 100644
+--- /dev/null
++++ b/kernel/freezer_backport.c
+@@ -0,0 +1,20 @@
++#include <linux/sched.h>
++#include <linux/cgroup.h>
++
++void cgroup_enter_frozen(void)
++{
++    try_to_freeze();
++}
++
++void cgroup_leave_frozen(bool async)
++{
++    /* placeholder implementation */
++    return;
++}

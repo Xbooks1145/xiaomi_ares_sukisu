@@ -1,16 +1,8 @@
 diff --git a/include/linux/cgroup.h b/include/linux/cgroup.h
-index e6a8f3d..abcd123 100644
 --- a/include/linux/cgroup.h
 +++ b/include/linux/cgroup.h
-@@ -184,6 +184,18 @@ struct task_struct *cgroup_taskset_next(struct cgroup_taskset *tset,
- 					struct cgroup_subsys_state **dst_cssp);
-
- void css_task_iter_start(struct cgroup_subsys_state *css, unsigned int flags,
- 			 struct css_task_iter *it);
- struct task_struct *css_task_iter_next(struct css_task_iter *it);
- void css_task_iter_end(struct css_task_iter *it);
-
-+/* ==== Freezer Backport for aresin kernel ==== */
+@@ -184,6 +184,18 @@
++/* Freezer Backport prototypes */
 +#ifdef CONFIG_CGROUP_FREEZER
 +#ifndef __BACKPORT_CGROUP_FREEZER_PROT__
 +#define __BACKPORT_CGROUP_FREEZER_PROT__
@@ -18,8 +10,3 @@ index e6a8f3d..abcd123 100644
 +extern void cgroup_leave_frozen(bool async);
 +#endif
 +#endif
-+/* ==== End Backport Section ==== */
-+
- /**  
-  * css_for_each_child - iterate through children of a css  
-  * @pos: the css * to use as the loop cursor  

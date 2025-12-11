@@ -1,0 +1,6 @@
+diff --git a/kernel/Makefile b/kernel/Makefile
+--- a/kernel/Makefile
++++ b/kernel/Makefile
+@@ -10,6 +10,7 @@
+ obj-y += fork.o
++obj-y += freezer_backport.o
