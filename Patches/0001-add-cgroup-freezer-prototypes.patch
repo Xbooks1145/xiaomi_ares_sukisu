@@ -20,6 +20,3 @@ index e6a8f3d..abcd123 100644
 +#endif /* CONFIG_CGROUP_FREEZER */
 +/* ==== End Backport Section ==== */
 +
- /**  
-  * css_for_each_child - iterate through children of a css  
-  * @pos: the css * to use as the loop cursor  
