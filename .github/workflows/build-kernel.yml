@@ -85,19 +85,13 @@ jobs:
           repository: SukiSU-Ultra/SukiSU_patch
           path: sukisu_patch
 
-      - name: Get susfs4ksu
-        run: |
-          git clone -b kernel-4.14 --depth=1 https://gitlab.com/simonpunk/susfs4ksu.git
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/fs/* $GITHUB_WORKSPACE/kernel/fs/
-          cp $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/include/linux/* $GITHUB_WORKSPACE/kernel/include/linux/
-
-      - name: Get susfs Update patch
+      - name: Get susfs patch
         uses: actions/checkout@v5
         with:
           repository: JackA1ltman/NonGKI_Kernel_Build_2nd
           sparse-checkout: Patches/Patch
           ref: mainline
-          path: susfs_upgrade_patch
+          path: susfs_patch
 
       - name: Patch Kernel
         working-directory: kernel
@@ -107,20 +101,14 @@ jobs:
       - name: Apply KernelPatch for SUSFS
         working-directory: kernel
         run: |
-          patch -p1 -F 3 < $GITHUB_WORKSPACE/susfs4ksu/kernel_patches/50_add_susfs_in_kernel-4.14.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1511_4.14.patch || true
+          patch -p1 < $GITHUB_WORKSPACE/susfs_patch/Patches/Patch/susfs_patch_to_4.14.patch || true
+          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_patch_taskmmu.patch
           if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1511_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_1512_4.14.patch || true
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix_T.patch
-          fi
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_1512_4.14_fix.patch
-          patch -p1 < $GITHUB_WORKSPACE/susfs_upgrade_patch/Patches/Patch/susfs_upgrade_to_2000_4.14.patch || true
-          patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after.patch
-          if [ "${{ inputs.SOURCECODE_BRANCH }}" = "T" ]; then
-            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_upgrade_to_2000_4.14_fix_after_T.patch
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_patch_base.patch
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_patch_fdinfo.patch
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_patch_readdir.patch
+          elif [ "${{ inputs.SOURCECODE_BRANCH }}" = "U-dev" ]; then
+            patch -p1 < $GITHUB_WORKSPACE/Patches/susfs_patch_newuname.patch
           fi
 
       - name: Copy defconfig

@@ -1,7 +1,7 @@
-From c38b982416d4523dd72c586cbb698fa03202a024 Mon Sep 17 00:00:00 2001
+From c079b75cb7751c297b1bec7b997f6065bec96570 Mon Sep 17 00:00:00 2001
 From: MerCuJerry <mercujerry@gmail.com>
-Date: Fri, 21 Nov 2025 23:07:06 +0800
-Subject: [PATCH] susfs_upgrade_to_1512_4.14_T
+Date: Sun, 4 Jan 2026 09:34:39 +0800
+Subject: [PATCH] susfs_patch_base
 
 ---
  fs/proc/base.c | 16 ++++++++++++++++

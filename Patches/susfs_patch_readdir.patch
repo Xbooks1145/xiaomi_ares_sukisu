@@ -1,0 +1,26 @@
+From bd93dcd10efaed46cee59bff3c8c7643fd32e9fc Mon Sep 17 00:00:00 2001
+From: MerCuJerry <mercujerry@gmail.com>
+Date: Sun, 4 Jan 2026 09:30:45 +0800
+Subject: [PATCH] susfs_patch_readdir
+
+---
+ fs/readdir.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/fs/readdir.c b/fs/readdir.c
+index 9fc70611b67d..130d10126adc 100644
+--- a/fs/readdir.c
++++ b/fs/readdir.c
+@@ -565,6 +565,9 @@ static int compat_fillonedir(struct dir_context *ctx, const char *name,
+ 		container_of(ctx, struct compat_readdir_callback, ctx);
+ 	struct compat_old_linux_dirent __user *dirent;
+ 	compat_ulong_t d_ino;
++#ifdef CONFIG_KSU_SUSFS_SUS_PATH
++	struct inode *inode;
++#endif
+ 
+ 	if (buf->result)
+ 		return -EINVAL;
+-- 
+2.52.0
+

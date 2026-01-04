@@ -1,0 +1,56 @@
+From 79ecec6ccee42e40b88ef3c45a9bbb6359ff4ea6 Mon Sep 17 00:00:00 2001
+From: MerCuJerry <mercujerry@gmail.com>
+Date: Sun, 4 Jan 2026 09:33:25 +0800
+Subject: [PATCH] susfs_patch_fdinfo
+
+---
+ fs/notify/fdinfo.c | 33 +++++++++++++++++++++++++++++++++
+ 1 file changed, 33 insertions(+)
+
+diff --git a/fs/notify/fdinfo.c b/fs/notify/fdinfo.c
+index d20ab20bfb03..9755856f1869 100644
+--- a/fs/notify/fdinfo.c
++++ b/fs/notify/fdinfo.c
+@@ -104,6 +104,39 @@ static void inotify_fdinfo(struct seq_file *m, struct fsnotify_mark *mark)
+ 	inode_mark = container_of(mark, struct inotify_inode_mark, fsn_mark);
+ 	inode = igrab(mark->connector->inode);
+ 	if (inode) {
++#ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
++		mnt = real_mount(file->f_path.mnt);
++		if (likely(susfs_is_current_proc_umounted()) &&
++					mnt->mnt_id >= DEFAULT_KSU_MNT_ID)
++		{
++			struct path path;
++			char *pathname = kmalloc(PAGE_SIZE, GFP_KERNEL);
++			char *dpath;
++			if (!pathname) {
++				goto out_seq_printf;
++			}
++			dpath = d_path(&file->f_path, pathname, PAGE_SIZE);
++			if (!dpath) {
++				goto out_free_pathname;
++			}
++			if (kern_path(dpath, 0, &path)) {
++				goto out_free_pathname;
++			}
++			u32 mask = mark->mask & IN_ALL_EVENTS;
++			seq_printf(m, "inotify wd:%x ino:%lx sdev:%x mask:%x ignored_mask:%x ",
++				inode_mark->wd, inode->i_ino, inode->i_sb->s_dev,
++				mask, mark->ignored_mask);
++			show_mark_fhandle(m, inode);
++			seq_putc(m, '\n');
++			iput(inode);
++			path_put(&path);
++			kfree(pathname);
++			return;
++out_free_pathname:
++			kfree(pathname);
++		}
++out_seq_printf:
++#endif
+ 		/*
+ 		 * IN_ALL_EVENTS represents all of the mask bits
+ 		 * that we expose to userspace.  There is at
+-- 
+2.52.0
+
